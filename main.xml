@@ -21,7 +21,7 @@ The 'shadowVolume' property sets the area of the game where lighting, and subseq
 	-->
 	<environment template="sunny" skyboxrot="-45"/>
 	
-	<spawnpoint pos="-10 0 0"/>
+	<spawnpoint pos="-10 1 0" rot="0 90 0"/>
 	
 	<body>
 		<!-- 
@@ -37,11 +37,19 @@ The 'shadowVolume' property sets the area of the game where lighting, and subseq
 		The 'pos' property sets it's position relative to the bottom center of the game world, in meters.
 		The 'file' property references the vox-file to be loaded. The 'LEVEL' keyword is a reference to the folder with the same name as the level file i.e., The keyword 'LEVEL' in the basic.xml level file (this file) references the folder named 'basic'.
 		-->
-		<vox pos="0.0 0.0 0.0" file="LEVEL/ground.vox"/> 
+		<vox pos="0.0 0.0 0.0" file="LEVEL/ground.vox"/>
 		
-		<!-- npc -->
-		<vox tags="npc" prop="true" pos="0.0 0.0 0.0" file="LEVEL/npc.vox"/>
+		<group name="npc">
+			<vox tags="npc_torso" prop="true" pos="0.0 0.0 0.0" file="LEVEL/npc.vox" object="torso"/>
+			
+			<vox tags="npc_head" prop="true" pos="0.0 1.7 0.0" file="LEVEL/npc.vox" object="head">
+				<joint pos="0.0 0.0 0.0" rot="0.0 0.0 0.0" type="ball" size="0.1" rotstrength="0.01" rotspring="0" sound="false"/>
+			</vox>
+		</group>
+	
 	</body>
+	
+	
 	<!-- 
 	The boundary is the orange grid which the player can not pass through. It is defined by a number of vertices.
 	-->
