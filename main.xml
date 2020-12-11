@@ -39,11 +39,11 @@ The 'shadowVolume' property sets the area of the game where lighting, and subseq
 		-->
 		<vox pos="0.0 0.0 0.0" file="LEVEL/ground.vox"/>
 		
-		<group name="npc">
+		<group tags="npc">
 			<vox tags="npc_torso" prop="true" pos="0.0 0.0 0.0" file="LEVEL/npc.vox" object="torso"/>
 			
 			<vox tags="npc_head" prop="true" pos="0.0 1.7 0.0" file="LEVEL/npc.vox" object="head">
-				<joint pos="0.0 0.0 0.0" rot="0.0 0.0 0.0" type="ball" size="0.1" rotstrength="0.01" rotspring="0" sound="false"/>
+				<joint tags="npc_joint_neck" pos="0.0 0.0 0.0" rot="0.0 0.0 0.0" type="ball" size="0.1" rotstrength="0.01" rotspring="0" sound="false"/>
 			</vox>
 		</group>
 	
