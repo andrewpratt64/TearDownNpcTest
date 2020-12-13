@@ -50,7 +50,6 @@ The 'shadowVolume' property sets the area of the game where lighting, and subseq
 			</body>
 			
 			<!--location tags="npc_eyepos_bob" pos="-0.25 0.15 -0.25"/-->
-			<location tags="npc_eyepos_bob" pos="0.0 1.7 0.0"/>
 			
 		</body>
 	

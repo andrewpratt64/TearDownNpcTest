@@ -25,29 +25,14 @@ function Npc.new(name)
 		DebugPrint("WARNING: Could not find npc <body> named \"" .. name .. '\"' );
 	end
 	
-	-- Init shapes
-	--self.shapes = GetBodyShapes(self.body);
-	
 	-- Init head body
 	self.headBody = FindBody("npc_head_" .. self.name, true);
 	
-	-- Init head shape
-	--self.headShape = nil;
-	--for _, shape in pairs(self.shapes) do
-	--	if (HasTag(shape, "npc_head_" .. name )) then
-	--		self.headShape = shape;
-	--	end
-	--end
-	--
-	--if (self.headShape == nil) then
-	--	DebugPrint("WARNING: Could not find head shape for npc named \"" .. name .. '\"' );
-	--end
+	-- Init death boolean
+	self.bDead = false;
 	
-	-- Init eye position
-	self.eyepos = FindLocation("npc_eyepos_" .. name, true); -- Position of eyes relative to head
-	if (IsHandleValid(self.eyepos) == false) then
-		DebugPrint("WARNING: Could not find eyepos for npc named \"" .. name .. '\"' );
-	end
+	-- Make sure physics are disabled
+	self:SetDynamic(false);
 	
 	return self;
 end
@@ -57,12 +42,8 @@ end
 function Npc:GetName()
 	return self.name;
 end
---function Npc:SetName(name)
---	self.name = name;
---	return self;
---end
 
-
+-- Npc pos
 function Npc:GetPos()
 	return GetBodyTransform(self.body).pos;
 end
@@ -74,6 +55,7 @@ function Npc:AddPos(pos)
 end
 
 
+-- Npc rot
 function Npc:GetRot()
 	return GetBodyTransform(self.body).rot;
 end
@@ -85,11 +67,13 @@ function Npc:AddRot(rot)
 end
 
 
+-- Npc Body
 function Npc:GetBody()
 	return self.body;
 end
 
 
+-- Npc Transform
 function Npc:GetTransform()
 	return GetBodyTransform(self.body);
 end
@@ -107,21 +91,33 @@ function Npc:SetTransform(t)
 end
 
 
-function Npc:GetEyeWorldPos()
-	--return VecAdd( GetLocationTransform(self.eyepos).pos, GetShapeWorldTransform(self.headShape).pos );
-	return VecAdd( GetLocationTransform(self.eyepos).pos, GetBodyTransform(self.body).pos );
+-- Dynamic physics
+function Npc:IsDynamic()
+	-- If the npc body is dynamic, consider the npc to be dynamic
+	return IsBodyDynamic(self.body);
+end
+function Npc:SetDynamic(val)
+	SetBodyDynamic(self.body,		val);
+	SetBodyDynamic(self.headBody,	val);
 end
 
 
 
+
 --	=PREDICATES=
+-- (Some predicate methods are in the get/set area, these are the ones that don't really have a mutator method)
 function Npc:IsValid()
 	return IsHandleValid(self.body);
+end
+
+function Npc:IsDead()
+	return self.bDead;
 end
 
 
 
 --	=METHODS=
+-- Make npc face the given target position
 function Npc:FacePos(target)
 	-- Rotate the entire body's yaw to face target
 	self:RotateYawToFacePos(target);
@@ -129,18 +125,52 @@ function Npc:FacePos(target)
 	self:FaceHeadTowardsPos(target);
 end
 
+-- Rotate the npc to face the given target position, but only rotate yaw
 function Npc:RotateYawToFacePos(target)
-	--SetBodyTransform( self.body, Transform( GetBodyTransform(self.body).pos, NpcUtil.QuatLookAtOnYaw( GetBodyTransform(self.body).pos, target ) ) );
 	self:SetRot( NpcUtil.QuatLookAtOnYaw( GetBodyTransform(self.body).pos, target ) );
 end
 
+-- Rotate npc's head to face the given target position
 function Npc:FaceHeadTowardsPos(target)
 	local headPos = GetBodyTransform(self.headBody).pos;
 	SetBodyTransform( self.headBody, Transform( headPos, QuatLookAt( headPos, target ) ) );
 end
 
 
+-- Kill the npc immediately
+function Npc:Die()
+	-- Set dead value to true
+	self.bDead = true;
+	
+	-- Enable physics
+	self:SetDynamic(true);
+end
+
+
+-- Figure out if we just now died, and decide what to do about it
+function Npc:HandlePotentialDeath()
+	-- Only force the npc to die if we died since the last time we checked
+	if (
+		(self.bDead == false) and (
+			not (
+				IsHandleValid(self.headBody) and not IsBodyBroken(self.headBody)
+			)
+		)
+	) then
+		self:Die();
+	end
+end
+
+
 function Npc:update()
-	-- Face the player
-	self:FacePos(GetCameraTransform().pos);
+	-- Only update if we're valid
+	if (not self:IsValid()) then return; end
+	
+	-- Handle our potential death
+	self:HandlePotentialDeath();
+
+	if (not self.bDead) then
+		-- Face the player
+		self:FacePos(GetCameraTransform().pos);
+	end
 end
