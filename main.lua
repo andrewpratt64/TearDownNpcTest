@@ -21,12 +21,12 @@ function tick()
 end
 
 
-function mod_update()
-	if (npc:IsValid()) then npc:update(); end
+function mod_update(dt)
+	if (npc:IsValid()) then npc:update(dt); end
 end
 
-function update()
-	local status, err = pcall(mod_update);
+function update(dt)
+	local status, err = pcall(mod_update, dt);
 	
 	if (status == false) then
 		--DebugPrint("LUA ERROR IN MOD npc IN FUNCTION update: " .. err);

@@ -39,17 +39,22 @@ The 'shadowVolume' property sets the area of the game where lighting, and subseq
 		-->
 		<vox pos="0.0 0.0 0.0" file="LEVEL/ground.vox"/>
 		
+		<!-- Npc named, "bob" -->
 		<body tags="npc_bob" pos="0.0 0.1 0.0" prop="false">
 		
+			<!-- Bounding box coords -->
+			<location tags="npc_bbox_min_bob" pos="-0.2 0.0 -0.3" />
+			<location tags="npc_bbox_max_bob" pos="0.3 1.9 0.2" />
+		
+			<!-- Torso -->
 			<vox pos="0.0 0.0 0.0" prop="false" file="LEVEL/npc.vox" object="torso"/>
-
+			
+			<!-- Head -->
 			<body tags="npc_head_bob" pos="0.0 1.7 0.0">
 				<vox pos="0.0 0.0 0.0" prop="false" file="LEVEL/npc.vox" object="head">
 					<joint tags="npc_joint_neck npc_name_bob" pos="0.0 0.0 0.0" rot="0.0 0.0 0.0" type="ball" size="0.1" rotstrength="0.01" rotspring="0" sound="false"/>
 				</vox>
 			</body>
-			
-			<!--location tags="npc_eyepos_bob" pos="-0.25 0.15 -0.25"/-->
 			
 		</body>
 	
