@@ -78,8 +78,7 @@ end
 
 -- Returns the highest position inside the given aabb that isn't empty
 -- Returns nil if given aabb is empty
--- bodyRejects is a list of bodies to exclude from testing
-function NpcUtil.GetHighestPointInAABB(minPos, maxPos, bodyRejects)
+function NpcUtil.GetHighestPointInAABB(minPos, maxPos)
 	local highestPos = nil;
 	
 	for x=minPos[1], maxPos[1], 0.1 do
@@ -96,7 +95,6 @@ function NpcUtil.GetHighestPointInAABB(minPos, maxPos, bodyRejects)
 	
 	return highestPos;
 end
-
 
 -- Same as above, but supports rejecting bodies
 -- bodyRejects is a list of bodies to exclude from testing
@@ -116,4 +114,40 @@ function NpcUtil.GetHighestPointInAABBWithBodyRejects(minPos, maxPos, bodyReject
 	end
 	
 	return highestPos;
+end
+
+
+-- Returns true if given aabb is empty
+-- If the aabb your using is only ever used to test if it's empty, this
+--  function is faster than GetHighestPointInAABB
+function NpcUtil.IsAABBEmpty(minPos, maxPos)
+
+	for x=minPos[1], maxPos[1], 0.1 do
+		for y=minPos[2], maxPos[2], 0.1 do
+			for z=minPos[3], maxPos[3], 0.1 do
+				if ( NpcUtil.IsVoxelAt( Vec(x, y, z) ) ) then
+					return false;
+				end
+			end
+		end
+	end
+	
+	return true;
+end
+
+-- Same as above, but supports rejecting bodies
+-- bodyRejects is a list of bodies to exclude from testing
+function NpcUtil.IsAABBEmptyWithBodyRejects(minPos, maxPos, bodyRejects)
+
+	for x=minPos[1], maxPos[1], 0.1 do
+		for y=minPos[2], maxPos[2], 0.1 do
+			for z=minPos[3], maxPos[3], 0.1 do
+				if ( NpcUtil.IsVoxelAtWithBodyRejects( Vec(x, y, z), bodyRejects ) ) then
+					return false;
+				end
+			end
+		end
+	end
+	
+	return true;
 end
