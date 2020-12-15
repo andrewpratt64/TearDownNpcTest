@@ -1,9 +1,6 @@
 -- Andrew Pratt 2020
 -- Npc class
 
--- TODO: Npc falling in middair
--- TODO: Consider changing implementation of GetHighestPointInAABBWithBodyRejects/IsAABBEmpty to use raycasting instead of iteration
--- TODO: Use a boolean variable to hold if the npc is in air, use it in AttemptMoveTo to allow falling
 -- TODO: Center of npc shouldn't pass over edge of cliff
 
 -- IMPORTANT NOTE TO SELF: Methods like GetBodyTransform return copies of the tabels, not references to the original
@@ -59,6 +56,18 @@ function Npc.new(name)
 	-- Init vertical acceleration due to gravity in m/s^2
 	self.gravity = -9.8;
 	
+	-- Amount to scale npc's mass by.
+	-- Useful for when materials that aren't human flesh make
+	--  up the npc, so that it dosen't have an insane mass
+	self.massScale = 1.0;
+	
+	-- Init min velocity threshold
+	-- Any components of velocity less than this amount are considered zero
+	self.minVelThreshold = 0.001;
+	
+	-- How many times to do a physics update during a single game update
+	-- More steps means more accurate physics, 
+	
 	
 	
 	-- Make sure physics are disabled
@@ -86,116 +95,107 @@ end
 -- Get/add to pos only if npc can fit
 -- Returns true if npc was moved
 function Npc:SetPosSafe(pos)
-	local canFit, highestPoint = self:CanFitAtPos(pos);
-
+	local canFit = self:CanFitAtPos(pos);
+	
 	if (canFit and NpcUtil.VecDiff(pos, GetPlayerTransform().pos) >= self.maxDistFromPlayer ) then
 	
 		self:SetTransform( Transform( pos, self:GetRot() ) );
 	
 		return true;
 	end
+	
 	return false;
 end
 function Npc:AddPosSafe(pos)
 	return self:SetPosSafe( VecAdd( self:GetPos(), pos ) );
 end
+
 -- Attempt to move npc to given pos
 -- Npc pos may not be a bit different than pos due to stepping, collision, etc.
 -- If canStep is true, npc will move up/down to be standing on top of surface (defaults to true)
 -- Returns true if npc was moved
+-- TODO: Is return value even needed?
 function Npc:AttemptMoveTo(pos, canStep)
 	canStep = canStep or true;
+	local highestMovePoint = nil;
 	
 	-- Get our bounding box size
 	local boundsSize = self:GetBoundsSize();
+	-- Get our new boundary points
+	local newBoundsMin, newBoundsMax = self:GetBoundsAt(pos);
 	
-	-- Get the highest point we can step UP to
-	local highestStepUpPoint = NpcUtil.GetHighestPointInAABBWithBodyRejects(
+	-- If we're in middair...
+	if (self.bInAir) then
+		
+		-- If we're NOT rising...
+		if (self.vel[2] <= self.minVelThreshold) then
+			
+			-- Get the highest point we can land on 
+			highestMovePoint = NpcUtil.GetHighestPointInAABBWithBodyRejects(
+				newBoundsMin,
+				Vec(
+					newBoundsMax[1],
+					newBoundsMin[2] + self.maxStepHeight,
+					newBoundsMax[3]
+				),
+				{self.body, self.headBody}
+			);
+			
+			-- If there's nowhere to land, we can just go as low as pos since nothing is stopping us
+			if (highestMovePoint == nil) then
+				
+				highestMovePoint = pos;
+			end
+			
+			-- Try to move
+			-- Return if we moved or not
+			if (self:SetPosSafe(pos)) then
+				return true;
+			end
+			
+			-- If we couldn't move, set horizontal velocity to zero then return false
+			self.vel = Vec(0, self.vel[2], 0);
+			return false;
+			
+		else
+			-- If we are rising...
+			-- TODO: Only stop motion in collision direction?
+			-- Try to move
+			-- Return if we moved or not
+			if (self:SetPosSafe(pos)) then
+				return true;
+			end
+			-- If we couldn't move, set velocity to zero then return false
+			self.vel = Vec(0, 0, 0);
+			return false;
+		end
+	end
+	
+	-- Otherwise, we're on the ground
+	-- Get the highest point we can step on 
+	highestMovePoint = NpcUtil.GetHighestPointInAABBWithBodyRejects(
 		Vec(
-			pos[1],
-			pos[2] - 0.1,
-			pos[3]
+			newBoundsMin[1],
+			newBoundsMin[2] - self.maxStepHeight,
+			newBoundsMin[3]
 		),
-		VecAdd(
-			pos,
-			Vec(
-				boundsSize[1],
-				self.maxStepHeight,
-				boundsSize[3]
-			)
+		Vec(
+			newBoundsMax[1],
+			newBoundsMin[2] + self.maxStepHeight,
+			newBoundsMax[3]
 		),
 		{self.body, self.headBody}
 	);
-	
-	-- If there was nowhere to step UP to...
-	if (highestStepUpPoint == nil) then
-		
-		-- ...get the lowest point we can step DOWN to
-		local highestStepDownPoint = NpcUtil.GetHighestPointInAABBWithBodyRejects(
-			Vec(
-				pos[1],
-				pos[2] - self.maxStepHeight,
-				pos[3]
-			),
-			VecAdd(
-				pos,
-				NpcUtil.VecSwizzleXZ( boundsSize )
-			),
-			{self.body, self.headBody}
-		);
-			
-			
-		-- If there was nowhere to step DOWN to...
-		if (highestStepDownPoint == nil) then
-			-- ...there's nowhere to step; return false
-			return false;
-		end
-		
-		
-		-- Otherwise, if the area above the highest point to step DOWN to is empty...
-		if (
-			NpcUtil.IsAABBEmptyWithBodyRejects(
-				pos,
-				VecAdd(
-					pos,
-					boundsSize
-				),
-				{self.body, self.headBody}
-			)
-		) then
-			-- ...move there, step DOWN, and return true
-			self:SetPos( Vec( pos[1], highestStepDownPoint[2], pos[3] ) );
-			return true;
-		end
-		
-		-- Otherwise, there's not enough room to fit; return false
+
+	-- Try to move
+	if ( highestMovePoint == nil or self:SetPosSafe( Vec( pos[1], highestMovePoint[2] + 0.1, pos[3] ) ) == false ) then
+		-- If we couldn't move, set velocity to zero then return false
+		self.vel = Vec(0, 0, 0);
 		return false;
 	end
 	
-	-- Otherwise, if the area above the highest point to step UP to is empty...
-	if (
-		NpcUtil.IsAABBEmptyWithBodyRejects(
-			Vec(
-				pos[1],
-				pos[2] + self.maxStepHeight,
-				pos[3]
-			),
-			VecAdd(
-				pos,
-				boundsSize
-			),
-			{self.body, self.headBody}
-		)
-	) then
-		-- ...move there, step UP, and return true
-		self:SetPos( Vec( pos[1], highestStepUpPoint[2], pos[3] ) );
-		return true;
-		
-	end
-	
-	-- Otherwise, there's not enough room to fit; return false
-	return false;
-
+	-- Otherwise, we moved; return true
+	return true;
 end
 
 -- Same as above, but adds to position instead
@@ -289,6 +289,32 @@ function Npc:GetBoundsSize()
 	-- Return the signed distance from the min coord to the max
 	return VecSub(bboxMax, bboxMin);
 end
+-- Get npc bounding box if it were at a specific spot
+function Npc:GetBoundsAt(pos)
+	local boundsSize = self:GetBoundsSize();
+	
+	return Vec(
+		pos[1] - boundsSize[1] * 0.5,
+		pos[2],
+		pos[3] - boundsSize[3] * 0.5
+	),
+	Vec(
+		pos[1] + boundsSize[1] * 0.5,
+		pos[2] + boundsSize[2],
+		pos[3] + boundsSize[3] * 0.5
+	);
+end
+
+
+
+-- Mass and weight
+function Npc:GetMass()
+	return self.massScale * ( GetBodyMass(self.body) + GetBodyMass(self.headBody) );
+end
+function Npc:GetWeight()
+	-- F = m*g
+	return self:GetMass() * self.gravity;
+end
 
 
 
@@ -304,27 +330,10 @@ function Npc:IsDead()
 end
 
 -- Returns true if npc can fit at the given position
--- Second return is the highest position the npc will collide with
 function Npc:CanFitAtPos(pos)
-	-- Get the highest point we will collide with at pos
-	local highestPoint = NpcUtil.GetHighestPointInAABBWithBodyRejects( pos, VecAdd( pos, self:GetBoundsSize() ), {self.body, self.headBody} );
+	local newBoundsMin, newBoundsMax = self:GetBoundsAt(pos);
 	
-	-- If it's too high to fit...
-	if ( highestPoint[2] - self:GetPos()[2] > self.maxStepHeight ) then
-		-- ...we can't fit; return false;
-		return false, highestPoint;
-	end
-	return true, highestPoint;
-end
-
--- Returns true if npc has nothing beneath it
-function Npc:IsOnAir()
-	local minBound, maxBound = self:GetBounds();
-	return NpcUtil.IsAABBEmptyWithBodyRejects(
-		Vec( minBound[1], minBound[2] - 0.1, minBound[3] ),
-		Vec( maxBound[1], minBound[2], maxBound[3] ),
-		{self.body, self.headBody}
-	);
+	return NpcUtil.IsAABBEmptyWithBodyRejects( newBoundsMin, newBoundsMax, {self.body, self.headBody} );
 end
 
 
@@ -347,6 +356,23 @@ end
 function Npc:FaceHeadTowardsPos(target)
 	local headPos = GetBodyTransform(self.headBody).pos;
 	SetBodyTransform( self.headBody, Transform( headPos, QuatLookAt( headPos, target ) ) );
+end
+
+
+-- Updates bInAir by testing npc's velocity what's below npc
+-- Returns true if npc has nothing beneath it
+function Npc:UpdateInAir()
+	if (self.vel[2] > self.minVelThreshold) then
+		self.bInAir = true;
+	else
+		local minBound, maxBound = self:GetBounds();
+		self.bInAir = NpcUtil.IsAABBEmptyWithBodyRejects(
+			Vec( minBound[1], minBound[2] - 0.15, minBound[3] ),
+			Vec( maxBound[1], minBound[2], maxBound[3] ),
+			{self.body, self.headBody}
+		);
+	end
+	return self.bInAir
 end
 
 
@@ -397,15 +423,8 @@ function Npc:MoveTowardsPosHorizontally(speed, target)
 end
 
 -- Update npc's position based on it's current velocity in m/s
--- Moves as if npc is on the ground, i.e. will stick to and change with ground height and refuse to walk off cliffs
-function Npc:ApplyVelOnGround(dt)
+function Npc:ApplyVel(dt)
 	self:AttemptMoveBy( VecScale(self.vel, dt) );
-end
-
--- Update npc's position based on it's current velocity in m/s
--- Moves as if npc is in middair, i.e. won't change with ground
-function Npc:ApplyVelMidAir(dt)
-	self:AddPosSafe( VecScale(self.vel, dt) );
 end
 
 
@@ -426,25 +445,43 @@ end
 
 -- Update physics
 function Npc:updatePhys(dt)
+	-- Cancel velocity values below threshold
+	if (math.abs(self.vel[1]) < self.minVelThreshold) then
+		self.vel[1] = 0;
+	end
+	if (math.abs(self.vel[2]) < self.minVelThreshold) then
+		self.vel[2] = 0;
+	end
+	if (math.abs(self.vel[3]) < self.minVelThreshold) then
+		self.vel[3] = 0;
+	end
+
 	-- If we're in middair...
-	if (self:IsOnAir()) then
+	if (self:UpdateInAir()) then
 		-- ...accelerate downwards
 		self:AddVel( Vec(0, self.gravity * dt, 0) );
-		
-		-- Update position based on velocity
-		self:ApplyVelMidAir(dt);
 	else
 	-- Otherwise...
 		-- If we have downwards y-velocity, set it to zero
 		if (self.vel[2] < 0) then self.vel[2] = 0; end
 		
-		-- Update position based on velocity
-		self:ApplyVelOnGround(dt);
+		-- Make sure we're not partially in the floor
+		-- (Rounds y-pos to the nearest 0.1)
+		---ocal currentPos = self:GetPos();
+		--self:SetPos( Vec( currentPos[1], math.floor( 10 * currentPos[2] + 0.5 ) * 0.1, currentPos[3] ) );
 	end
+	
+	-- Update position based on velocity
+	self:ApplyVel(dt);
 end
 
 
 function Npc:update(dt)
+	-- TEMP
+	if (InputDown("h")) then
+		self:AddVel(Vec(0, 2, 0));
+	end
+
 	-- Only update if we're valid
 	if (not self:IsValid()) then return; end
 	

@@ -5,6 +5,34 @@
 NpcUtil = {}
 
 
+
+-- Draw outline of aabb
+function NpcUtil.DebugDrawBox(minPos, maxPos, r, g, b, a)
+	r = r or 1;
+	g = g or 1;
+	b = b or 1;
+	a = a or 1;
+
+	DebugLine( Vec( minPos[1], minPos[2], minPos[3] ), Vec( maxPos[1], minPos[2], minPos[3] ), r, g, b, a);
+	DebugLine( Vec( minPos[1], minPos[2], minPos[3] ), Vec( minPos[1], maxPos[2], minPos[3] ), r, g, b, a);
+	DebugLine( Vec( minPos[1], minPos[2], minPos[3] ), Vec( minPos[1], minPos[2], maxPos[3] ), r, g, b, a);
+	
+	DebugLine( Vec( maxPos[1], minPos[2], minPos[3] ), Vec( maxPos[1], maxPos[2], minPos[3] ), r, g, b, a);
+	DebugLine( Vec( maxPos[1], minPos[2], minPos[3] ), Vec( maxPos[1], minPos[2], maxPos[3] ), r, g, b, a);
+	
+	DebugLine( Vec( minPos[1], maxPos[2], minPos[3] ), Vec( maxPos[1], maxPos[2], minPos[3] ), r, g, b, a);
+	DebugLine( Vec( minPos[1], maxPos[2], minPos[3] ), Vec( minPos[1], maxPos[2], maxPos[3] ), r, g, b, a);
+	
+	DebugLine( Vec( minPos[1], minPos[2], maxPos[3] ), Vec( maxPos[1], minPos[2], maxPos[3] ), r, g, b, a);
+	DebugLine( Vec( minPos[1], minPos[2], maxPos[3] ), Vec( minPos[1], maxPos[2], maxPos[3] ), r, g, b, a);
+	
+	DebugLine( Vec( maxPos[1], maxPos[2], maxPos[3] ), Vec( minPos[1], maxPos[2], maxPos[3] ), r, g, b, a);
+	DebugLine( Vec( maxPos[1], maxPos[2], maxPos[3] ), Vec( maxPos[1], minPos[2], maxPos[3] ), r, g, b, a);
+	DebugLine( Vec( maxPos[1], maxPos[2], maxPos[3] ), Vec( maxPos[1], maxPos[2], minPos[3] ), r, g, b, a);
+end
+
+
+
 function NpcUtil.VecToString(vec)
 	return "Vec(" .. vec[1] .. ", " .. vec[2] .. ", " .. vec[3] .. ")";
 end
@@ -75,11 +103,23 @@ function NpcUtil.IsVoxelAtWithBodyRejects(pos, bodyRejects)
 	return QueryClosestPoint(pos, 0.1);
 end
 
+-- TODO: Lots of duplicate code, fix this(?)
 
 -- Returns the highest position inside the given aabb that isn't empty
+-- Sort is a boolean, set to false if you're positive minPos is smaller
+--  than maxPos to save time (defaults to true)
 -- Returns nil if given aabb is empty
-function NpcUtil.GetHighestPointInAABB(minPos, maxPos)
+function NpcUtil.GetHighestPointInAABB(minPos, maxPos, sort)
+	sort = sort or true;
 	local highestPos = nil;
+	
+	-- Sort positions if needed
+	if (sort) then
+		local unsortedMinPos = VecCopy(minPos);
+		local unsortedMaxPos = VecCopy(maxPos);
+		minPos = NpcUtil.VecMin(unsortedMinPos, unsortedMaxPos);
+		maxPos = NpcUtil.VecMax(unsortedMinPos, unsortedMaxPos);
+	end
 	
 	for x=minPos[1], maxPos[1], 0.1 do
 		for y=minPos[2], maxPos[2], 0.1 do
@@ -98,8 +138,18 @@ end
 
 -- Same as above, but supports rejecting bodies
 -- bodyRejects is a list of bodies to exclude from testing
-function NpcUtil.GetHighestPointInAABBWithBodyRejects(minPos, maxPos, bodyRejects)
+function NpcUtil.GetHighestPointInAABBWithBodyRejects(minPos, maxPos, bodyRejects, sort)
+	sort = sort or true;
 	local highestPos = nil;
+	
+	-- Sort positions if needed
+	if (sort) then
+		local unsortedMinPos = VecCopy(minPos);
+		local unsortedMaxPos = VecCopy(maxPos);
+		minPos = NpcUtil.VecMin(unsortedMinPos, unsortedMaxPos);
+		maxPos = NpcUtil.VecMax(unsortedMinPos, unsortedMaxPos);
+	end
+
 	
 	for x=minPos[1], maxPos[1], 0.1 do
 		for y=minPos[2], maxPos[2], 0.1 do
@@ -120,7 +170,18 @@ end
 -- Returns true if given aabb is empty
 -- If the aabb your using is only ever used to test if it's empty, this
 --  function is faster than GetHighestPointInAABB
-function NpcUtil.IsAABBEmpty(minPos, maxPos)
+-- Sort is a boolean, set to false if you're positive minPos is smaller
+--  than maxPos to save time (defaults to true)
+function NpcUtil.IsAABBEmpty(minPos, maxPos, sort)
+	sort = sort or true;
+	
+	-- Sort positions if needed
+	if (sort) then
+		local unsortedMinPos = VecCopy(minPos);
+		local unsortedMaxPos = VecCopy(maxPos);
+		minPos = NpcUtil.VecMin(unsortedMinPos, unsortedMaxPos);
+		maxPos = NpcUtil.VecMax(unsortedMinPos, unsortedMaxPos);
+	end
 
 	for x=minPos[1], maxPos[1], 0.1 do
 		for y=minPos[2], maxPos[2], 0.1 do
@@ -137,7 +198,16 @@ end
 
 -- Same as above, but supports rejecting bodies
 -- bodyRejects is a list of bodies to exclude from testing
-function NpcUtil.IsAABBEmptyWithBodyRejects(minPos, maxPos, bodyRejects)
+function NpcUtil.IsAABBEmptyWithBodyRejects(minPos, maxPos, bodyRejects, sort)
+	sort = sort or true;
+	
+	-- Sort positions if needed
+	if (sort) then
+		local unsortedMinPos = VecCopy(minPos);
+		local unsortedMaxPos = VecCopy(maxPos);
+		minPos = NpcUtil.VecMin(unsortedMinPos, unsortedMaxPos);
+		maxPos = NpcUtil.VecMax(unsortedMinPos, unsortedMaxPos);
+	end
 
 	for x=minPos[1], maxPos[1], 0.1 do
 		for y=minPos[2], maxPos[2], 0.1 do
